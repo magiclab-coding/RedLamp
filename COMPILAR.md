@@ -160,6 +160,8 @@ cd "$HOME/redlamp-dev/source"
 "$ADB" -e shell dumpsys package es.luzlocal.multi | grep -E 'versionCode=|versionName='
 ```
 
-Si el perfil Android 9 x86_64 carece de esa arquitectura, usa el Xperia real para validar Android 9 con ARM64. Una imagen x86_64 de Android 11 que anuncie `arm64-v8a` sirve para ensayar la aplicación en un entorno virtual adicional. Mantén la prueba de emparejamiento y control de la bombilla Matter en el Xperia físico.
+En el entorno Linux x86_64 de RedLamp se verificó el arranque por software de Android 9 con API 28, 720 × 1280 y 320 dpi. La imagen inició con `x86_64,x86`. La APK requiere `arm64-v8a`.
+
+Para probar Android 9 con la ABI del Xperia en un equipo compatible con emulación ARM64, busca `system-images;android-28;google_apis;arm64-v8a` en el SDK Manager. En Android Studio, usa el mismo perfil de hardware en Device Manager, elige **Android 9 / API 28 / Google APIs / ARM 64 v8a** y nombra el dispositivo `Xperia_XZ1_Compact_API_28_ARM64`. Tras el arranque, confirma `arm64-v8a` con `adb shell getprop ro.product.cpu.abilist` antes de instalar las APK. En un host x86_64, una imagen x86_64 de Android 11 que anuncie `arm64-v8a` sirve para ensayar la aplicación con otra API. Usa el Xperia físico para comprobar el emparejamiento y control de la bombilla Matter.
 
 [Android SDK Manager](https://developer.android.com/tools/sdkmanager) · [Aceleración del emulador](https://developer.android.com/studio/run/emulator-acceleration) · [ABI admitidas por imágenes de Android](https://developer.android.com/studio/releases/emulator) · [Guía Sony Xperia XZ1 Compact con Android 9](https://www-support-downloads.sonymobile.com/g8441/userguide_EN_G8441_5_Android9.0.pdf)
