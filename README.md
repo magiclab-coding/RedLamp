@@ -1,10 +1,10 @@
 # RedLamp · Luz MOES
 
-Aplicación Android para controlar bombillas MOES. El trabajo de migración a GitHub se sigue en la [issue #2](https://github.com/magiclab-coding/RedLamp/issues/2). El código fuente y las APK históricas están pendientes de importación en esta rama.
+Aplicación Android para controlar bombillas MOES. El trabajo de migración a GitHub se sigue en la [issue #2](https://github.com/magiclab-coding/RedLamp/issues/2). El código Android está en `android/`, las APK del sitio en `dist/` y las entregas anteriores en `archive/`.
 
 ## Estado de la recuperación
 
-Se recuperaron los seis commits de origen y las APK históricas. La copia Git original se comprobó con `git bundle verify`. La importación del código y los binarios a `develop` está pendiente de autorización específica.
+Se recuperaron los seis commits de origen y las APK históricas. La copia Git original se comprobó con `git bundle verify`. El archivo `git bundle` conserva los seis commits con sus identificadores originales.
 
 El ensamblado local de 3.2 se verificó a partir de la APK 3.1 y el código recuperado. El proceso usa Java 17 para compilar a nivel Java 8, Android SDK API 28, Build Tools 35.0.0 y Apktool 2.11.1. Sustituye el DEX de la interfaz, el HTML y el manifiesto en una copia de la APK base y alinea el resultado. La APK sin firma declara `es.luzlocal.multi`, versión 3.2 (`versionCode` 7) y arquitectura `arm64-v8a`.
 
@@ -24,15 +24,15 @@ Las APK publicadas 3.1 y 3.2 comparten el certificado SHA-256 `369533971c66d7893
 
 2. Instala un JDK con `javac`, Python 3, Apktool 2.11.1 y el SDK de Android. La compilación recuperada usaba `android.jar` de Android 9 (API 28) y las herramientas `d8`, `zipalign` y `apksigner` de Android 15. Instala también Platform Tools para usar `adb`. En Android Studio puedes instalar los componentes desde SDK Manager. Identifica la ruta de cada componente en tu equipo.
 
-3. Al recuperar el árbol de compilación, conserva la APK base exacta de cada versión. La copia inspeccionada contiene `android/casa`, `android/multi` y `android/studio`. Studio contiene `Studio.java`, `Rooms.java`, `CameraPage.java`, `studio.html` y el icono. El procedimiento observado recompilaba Java con `javac`, generaba DEX con D8 y repaquetaba la base con Apktool. Los scripts de ensamblado y las pruebas recuperadas se prepararon en una copia de trabajo. Su incorporación al repositorio queda registrada en la issue #2.
+3. Sigue [COMPILAR.md](COMPILAR.md) para preparar las dependencias, ensamblar la APK 3.2 y ejecutar las pruebas de Java y de la interfaz.
 
-4. Para preparar una actualización compatible, conserva el identificador de aplicación, aumenta `versionCode` y firma con el mismo certificado que la APK instalada. La clave privada y su contraseña se gestionan fuera de Git. Alinea la APK antes de firmarla y compara los certificados antes de instalar. Sustituye los nombres de archivo por las copias locales.
+4. Para preparar una actualización compatible, conserva el identificador de aplicación, aumenta `versionCode` y firma con el mismo certificado que la APK instalada. La clave privada y su contraseña se gestionan fuera de Git. Alinea la APK antes de firmarla y compara los certificados antes de instalar. Ejecuta los comandos desde la raíz del repositorio con las herramientas del SDK en el `PATH`.
 
    ```bash
-   apksigner verify --print-certs Luz-MOES-3.1.apk
-   apksigner verify --print-certs Luz-MOES-3.2.apk
+   apksigner verify --print-certs dist/Luz-MOES-3.1.apk
+   apksigner verify --print-certs dist/Luz-MOES-3.2.apk
    adb devices
-   adb install -r Luz-MOES-3.2.apk
+   adb install -r dist/Luz-MOES-3.2.apk
    ```
 
 5. En el Sony Xperia con Android 9, prueba la actualización sobre 3.1 y comprueba que se conservan las bombillas configuradas. Abre una tarjeta, prueba el menú de opciones y comprueba que los deslizadores mantienen el valor al soltarlos. Registra los resultados y las capturas en la issue correspondiente.
@@ -48,24 +48,38 @@ Los commits de esta tabla pertenecen al repositorio de origen del sitio de desca
 | 3 | Luz-MOES-Multi.apk | `9acbb1c69f90b3175a84d5cece1e0a59e630a26c` |
 | 4 | Luz-MOES-3.apk | `8ceb17aa7585c816ecf3dda881314b93648fb643` |
 | 5 | Luz-MOES-3.1.apk | `8170a53f059d705fcb2429b9514df6b2e10d266f` |
-| 6 | Luz-MOES-3.2.apk según el registro de publicación | `89f08fa41ed1530afb82ee38b1192f3cbaa3cb1c` |
+| 6 | Luz-MOES-3.2.apk | `89f08fa41ed1530afb82ee38b1192f3cbaa3cb1c` |
 
 [Descarga de Luz MOES](https://luz-moes-android.martint-rubens.chatgpt.site)
 
 ### Entregas anteriores localizadas
 
-| Archivo | Bytes | Origen |
-| --- | ---: | --- |
-| Instalar-Luz-MOES.html | 7857212 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_f2a2cd93c6ec8191b22374cc9e31f360&account_id=personal) |
-| Reparar-Luz-MOES.html | 99848 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_0a10f20f77788191b7fa586e617f493d&account_id=personal) |
-| Luz-MOES-compacta(1).apk | 5654043 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_f642d9a2fc348191ba9f37fe44bfdbf7&account_id=personal) |
-| Luz-MOES-compacta.apk | 5727469 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_f494e571365881919aca2d494ecb8a6f&account_id=personal) |
-| Luz-MOES-1.0.1(1).apk | 24674607 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_bc840a2b9e508191a8d0a444a376f25c&account_id=personal) |
-| Luz-MOES-1.0.1.apk | 24995053 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_613f87cf176081919968d5adddc25b36&account_id=personal) |
-| Luz-MOES-Android.zip | 24995123 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_4a15fba0e3688191bf0abaa5edc60791&account_id=personal) |
-| Luz-MOES-1.0.apk | 24994993 | [Abrir archivo](https://chatgpt.com/library?file_id=libfile_61741c34d8108191855a77612c8c8e8d&account_id=personal) |
+| Archivo | Ubicación |
+| --- | --- |
+| Luz-MOES-compacta.apk | `archive/` |
+| Luz-MOES-compacta(1).apk | `archive/` |
+| Luz-MOES-1.0.apk | `archive/parts/` |
+| Luz-MOES-1.0.1.apk | `archive/parts/` |
+| Luz-MOES-1.0.1(1).apk | `archive/parts/` |
 
-Para cerrar la migración, recuperar el historial original y los archivos adicionales, calcular SHA-256 para detectar duplicados y verificar los archivos tras subirlos. Completar el procedimiento de compilación a partir del entorno histórico y reproducir la compilación en una copia limpia.
+Las dos APK compactas están en `archive/`. La compacta sin sufijo coincide byte a byte con `dist/Luz-MOES.apk`. El ZIP original contiene la APK 1.0. La firma de las dos APK etiquetadas `(1)` queda sin verificar.
+
+### Recuperar las APK antiguas y el historial Git
+
+Desde la raíz del repositorio, en Linux o WSL, ejecuta:
+
+```bash
+mkdir -p recuperados
+cat archive/parts/Luz-MOES-1.0.apk.part-* > recuperados/Luz-MOES-1.0.apk
+cat archive/parts/Luz-MOES-1.0.1.apk.part-* > recuperados/Luz-MOES-1.0.1.apk
+cat archive/parts/'Luz-MOES-1.0.1(1).apk'.part-* > 'recuperados/Luz-MOES-1.0.1(1).apk'
+cat archive/parts/RedLamp-historial-original.bundle.part-* > recuperados/RedLamp-historial-original.bundle
+sha256sum -c archive/SHA256SUMS
+git bundle verify recuperados/RedLamp-historial-original.bundle
+git clone --branch main recuperados/RedLamp-historial-original.bundle RedLamp-historial
+```
+
+El archivo `archive/SHA256SUMS` verifica las APK directas, las piezas y los archivos reconstruidos. El clon `RedLamp-historial` contiene los seis commits originales del sitio.
 
 ## Flujo de cambios
 
