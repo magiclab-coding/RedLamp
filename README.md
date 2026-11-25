@@ -10,32 +10,11 @@ El ensamblado local de 3.2 se verificó a partir de la APK 3.1 y el código recu
 
 Los tres JAR de Matter para la compilación están en [Nordic Semiconductor, revisión 9ad6dec](https://github.com/nordicsemi/kotlin-nrf-matter/tree/9ad6dec0c72f2bdd1bc67b9c78defe5cf4567142/lib/libs). ZXing Core 3.5.3 está en [Maven Central](https://central.sonatype.com/artifact/com.google.zxing/core/3.5.3). Se descargaron las cuatro dependencias y sus SHA-256 coinciden con las copias recuperadas.
 
-Las APK publicadas 3.1 y 3.2 comparten el certificado SHA-256 `369533971c66d7893bad6fbacd1432b064560728559424785fad5276cacff7c3`. La prueba de actualización con una bombilla real en Android 9 sigue pendiente.
+Las APK publicadas 3.1 y 3.2 comparten el certificado SHA-256 `369533971c66d7893bad6fbacd1432b064560728559424785fad5276cacff7c3`. El usuario confirmó la actualización de 3.1 a 3.2 en su Xperia Android 9.
 
 ## Entorno de desarrollo Android
 
-1. Clona el repositorio privado con una cuenta de GitHub con acceso y abre la rama de desarrollo.
-
-   ```bash
-   git clone https://github.com/magiclab-coding/RedLamp.git
-   cd RedLamp
-   git switch develop
-   ```
-
-2. Instala un JDK con `javac`, Python 3, Apktool 2.11.1 y el SDK de Android. La compilación recuperada usaba `android.jar` de Android 9 (API 28) y las herramientas `d8`, `zipalign` y `apksigner` de Android 15. Instala también Platform Tools para usar `adb`. En Android Studio puedes instalar los componentes desde SDK Manager. Identifica la ruta de cada componente en tu equipo.
-
-3. Sigue [COMPILAR.md](COMPILAR.md) para preparar las dependencias, ensamblar la APK 3.2 y ejecutar las pruebas de Java y de la interfaz.
-
-4. Para preparar una actualización compatible, conserva el identificador de aplicación, aumenta `versionCode` y firma con el mismo certificado que la APK instalada. La clave privada y su contraseña se gestionan fuera de Git. Alinea la APK antes de firmarla y compara los certificados antes de instalar. Ejecuta los comandos desde la raíz del repositorio con las herramientas del SDK en el `PATH`.
-
-   ```bash
-   apksigner verify --print-certs dist/Luz-MOES-3.1.apk
-   apksigner verify --print-certs dist/Luz-MOES-3.2.apk
-   adb devices
-   adb install -r dist/Luz-MOES-3.2.apk
-   ```
-
-5. En el Sony Xperia con Android 9, prueba la actualización sobre 3.1 y comprueba que se conservan las bombillas configuradas. Abre una tarjeta, prueba el menú de opciones y comprueba que los deslizadores mantienen el valor al soltarlos. Registra los resultados y las capturas en la issue correspondiente.
+Consulta [COMPILAR.md](COMPILAR.md) para preparar un entorno aislado, compilar y firmar una APK de desarrollo, instalar la versión distribuida y configurar el emulador Xperia con Android 9.
 
 ## Historial identificado
 
