@@ -11,3 +11,9 @@ Repositorio: https://github.com/magiclab-coding/RedLamp
 - Probar el cambio desde su punto de entrada habitual. En cambios visuales, verificar el tamaño de pantalla afectado y adjuntar una captura del resultado. En la solicitud de integración, resumir los cambios y las pruebas realizadas.
 - Para una entrega en desarrollo, comprobar el commit en la rama acordada. Cuando se solicite publicar, verificar el destino de RedLamp, seguir el despliegue y probar la función publicada.
 - Cerrar la issue tras verificar el resultado en el destino solicitado. Registrar rama, commit, pruebas y evidencias. Indicar cualquier comprobación pendiente.
+
+## Versiones de la APK
+
+- `develop` contiene compilaciones en prueba. Incrementa el `versionCode` para cada APK distribuida.
+- `main` contiene el código de las versiones estables. Cada publicación estable incrementa la versión mayor y reinicia la menor a cero.
+- Publica en el sitio de descargas la APK estable firmada con el certificado de RedLamp. Actualiza `stable.json` en la misma publicación con `versionName`, `versionCode` y el SHA-256 de esa APK. Comprueba que ambos archivos públicos coinciden antes de dar la publicación por finalizada.
