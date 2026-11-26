@@ -165,3 +165,14 @@ En el entorno Linux x86_64 de RedLamp se verificó el arranque por software de A
 Para probar Android 9 con la ABI del Xperia en un equipo compatible con emulación ARM64, busca `system-images;android-28;google_apis;arm64-v8a` en el SDK Manager. En Android Studio, usa el mismo perfil de hardware en Device Manager, elige **Android 9 / API 28 / Google APIs / ARM 64 v8a** y nombra el dispositivo `Xperia_XZ1_Compact_API_28_ARM64`. Tras el arranque, confirma `arm64-v8a` con `adb shell getprop ro.product.cpu.abilist` antes de instalar las APK. En un host x86_64, una imagen x86_64 de Android 11 que anuncie `arm64-v8a` sirve para ensayar la aplicación con otra API. Usa el Xperia físico para comprobar el emparejamiento y control de la bombilla Matter.
 
 [Android SDK Manager](https://developer.android.com/tools/sdkmanager) · [Aceleración del emulador](https://developer.android.com/studio/run/emulator-acceleration) · [ABI admitidas por imágenes de Android](https://developer.android.com/studio/releases/emulator) · [Guía Sony Xperia XZ1 Compact con Android 9](https://www-support-downloads.sonymobile.com/g8441/userguide_EN_G8441_5_Android9.0.pdf)
+
+## Generar la actualización 3.3 de interfaz
+
+Desde la raíz del clon, con el SDK y Apktool configurados como en los pasos 1 y 2:
+
+```bash
+bash android/studio/build-ui-3.3.sh dist/Luz-MOES-3.2.apk "$REDLAMP_DEV/out/Luz-MOES-3.3-sin-firma.apk"
+node android/studio/tests/test-web.cjs
+```
+
+El script verifica la APK base, actualiza su manifiesto a 3.3 (código 8) y sustituye la interfaz HTML. Conserva el código DEX, las bibliotecas Matter y los demás recursos de 3.2. La APK firmada con el certificado original está en `dist/Luz-MOES-3.3.apk` de la rama de desarrollo.

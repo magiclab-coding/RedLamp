@@ -9,6 +9,7 @@ class Element {
     this.children = [];
   }
   setAttribute(key, value) { this.attributes[key] = value; }
+  removeAttribute(key) { delete this.attributes[key]; }
   appendChild(child) { this.children.push(child); }
   setPointerCapture(id) { this.pointer = id; }
   hasPointerCapture(id) { return this.pointer === id; }
@@ -20,11 +21,13 @@ const byId = id => {
   return elements.get(id);
 };
 const calls = [];
-const window = {};
-const document = {getElementById: byId, querySelectorAll: () => [], addEventListener() {}, createElement: () => new Element()};
-vm.runInNewContext(script, {window, document, LampApp: {act: (...args) => calls.push(args)}});
+const window = {scrollTo() {}};
+const customMode = byId('custom-mode');
+const document = {body: {dataset: {}}, getElementById: byId, querySelector: () => customMode, querySelectorAll: () => [], addEventListener() {}, createElement: () => new Element()};
+const ui = vm.createContext({window, document, LampApp: {act: (...args) => calls.push(args)}});
+vm.runInContext(script, ui);
 const update = window.update;
-const base = {online: true, b: 10, br: 0, t: 20, tr: 0, k: 3300, kw: 2500, kc: 6500};
+const base = {online: true, b: 10, br: 0, t: 20, tr: 0, k: 3300, kw: 2500, kc: 6500, db: 75, dt: 40};
 update(base);
 const bright = byId('bright');
 const dial = byId('dial');
@@ -36,18 +39,26 @@ bright.onchange();
 const point = {pointerId: 1, clientX: 160, clientY: 31};
 dial.onpointerdown(point);
 update(base);
-assert.equal(byId('temp').textContent, '50 %');
+assert.equal(byId('temp').textContent, '4500 K');
 dial.onpointerup(point);
 update(base);
 assert.equal(bright.value, 83);
-assert.equal(byId('temp').textContent, '50 %');
+assert.equal(byId('temp').textContent, '4500 K');
 dial.onkeydown({key: 'ArrowRight', preventDefault() {}});
 update({...base, b: 83, br: 1, t: 50, tr: 1, k: 4500});
-assert.equal(byId('temp').textContent, '51 %');
-assert.equal(byId('kel').textContent, '4540 K · Temperatura');
+assert.equal(byId('temp').textContent, '4540 K');
+assert.equal(dial.attributes['aria-valuetext'], '4540 K');
 update({...base, b: 83, br: 1, t: 51, tr: 2, k: 4540});
-assert.equal(byId('temp').textContent, '51 %');
+assert.equal(byId('temp').textContent, '4540 K');
 assert.deepEqual(calls.map(x=>x.slice(0,3)), [['brightness',83,1],['temp',50,1],['temp',51,2]]);
+vm.runInContext("show('defaults')", ui);
+assert.equal(byId('tv').textContent, '4100 K');
+byId('dt').value = 100;
+vm.runInContext('form()', ui);
+assert.equal(byId('tv').textContent, '6500 K');
+assert.equal(byId('dt').attributes['aria-valuetext'], '6500 K');
+update({...base, online: false});
+assert.equal(byId('temp').textContent, '—');
 assert.match(html, /-webkit-tap-highlight-color:transparent/);
 assert.match(html, /top:53\.4965%;left:50%;transform:translate\(-50%,-50%\)/);
 console.log('PASS: dial, brightness, delayed snapshots, rapid retargeting, touch styles');

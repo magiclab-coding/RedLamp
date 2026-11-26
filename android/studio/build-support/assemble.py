@@ -9,9 +9,11 @@ with ZipFile(rebuilt) as rebuilt_apk:
 
 replacements = {
     "AndroidManifest.xml": manifest,
-    "classes3.dex": dex.read_bytes(),
     "assets/studio.html": html.read_bytes(),
 }
+
+if dex != Path("-"):
+    replacements["classes3.dex"] = dex.read_bytes()
 
 with ZipFile(base) as base_apk, ZipFile(output, "w") as output_apk:
     for member in base_apk.infolist():
