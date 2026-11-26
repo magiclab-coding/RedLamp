@@ -14,7 +14,4 @@ Repositorio: https://github.com/magiclab-coding/RedLamp
 
 ## Versiones de la APK
 
-- `develop` contiene compilaciones en prueba. Incrementa el `versionCode` para cada APK distribuida.
-- `main` contiene el código de las versiones estables. Cada publicación estable incrementa la versión mayor y reinicia la menor a cero.
-- Publica en el sitio de descargas la APK estable firmada con el certificado de RedLamp. Actualiza `stable.json` en la misma publicación con `versionName`, `versionCode` y el SHA-256 de esa APK. Comprueba que ambos archivos públicos coinciden antes de dar la publicación por finalizada.
-- Las versiones de prueba incrementan la versión menor y se anuncian en `preview.json` con los mismos campos que `stable.json`. Ambos canales usan el nombre `Luz-MOES-<versión>.apk` y el mismo certificado.
+Publica versiones de prueba de develop como prerelease y versiones estables de main como release normal. Usa etiquetas vM.m y adjunta Luz-MOES-M.m.apk firmada con el certificado original. Incrementa versionCode con cada APK y la versión mayor en cada estable. Verifica el canal y el SHA-256 del adjunto en GitHub Releases.

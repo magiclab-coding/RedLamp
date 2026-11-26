@@ -29,7 +29,7 @@ Los commits de esta tabla pertenecen al repositorio de origen del sitio de desca
 | 5 | Luz-MOES-3.1.apk | `8170a53f059d705fcb2429b9514df6b2e10d266f` |
 | 6 | Luz-MOES-3.2.apk | `89f08fa41ed1530afb82ee38b1192f3cbaa3cb1c` |
 
-[Descarga de Luz MOES](https://luz-moes-android.martint-rubens.chatgpt.site)
+[Descargas en GitHub Releases](https://github.com/magiclab-coding/RedLamp/releases)
 
 ### Entregas anteriores localizadas
 
@@ -63,3 +63,7 @@ El archivo `archive/SHA256SUMS` verifica las APK directas, las piezas y los arch
 ## Flujo de cambios
 
 Consulta [AGENTS.md](AGENTS.md). Registra cada petición en una issue y reutiliza la original si reaparece. Añade capturas en el cuerpo de la issue cuando existan. Trabaja desde `develop`, referencia la issue en los commits y verifica el resultado en la rama o el despliegue solicitado.
+
+## Probar actualizaciones
+
+Instala la versión 5.1, abre Información y marca Incluir versiones de prueba. Con wifi o datos móviles, pulsa Buscar para detectar la 5.2, confirma el aviso y acepta la instalación en Android. La licencia MIT corresponde al código propio. Las dependencias conservan sus licencias.

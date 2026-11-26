@@ -15,65 +15,100 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import javax.net.ssl.HttpsURLConnection;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 public final class StableUpdate extends BroadcastReceiver {
-    private static final String ORIGIN = "https://luz-moes-android.martint-rubens.chatgpt.site/";
+    private static final String REPO = "magiclab-coding/RedLamp";
+    private static final String API = "https://api.github.com/repos/" + REPO + "/releases";
     private static final int MAX_APK_BYTES = 64 * 1024 * 1024;
-    final String version;
-    final int code;
-    final String hash;
+    final String version, hash, assetUrl;
     final boolean preview;
 
-    public StableUpdate() {
-        this("", 0, "", false);
-    }
+    public StableUpdate() { this("", "", "", false); }
 
-    private StableUpdate(String version, int code, String hash, boolean preview) {
+    private StableUpdate(String version, String hash, String assetUrl, boolean preview) {
         this.version = version;
-        this.code = code;
         this.hash = hash;
+        this.assetUrl = assetUrl;
         this.preview = preview;
     }
 
-    private static HttpsURLConnection connect(String file) throws IOException {
-        HttpsURLConnection connection = (HttpsURLConnection) new URL(ORIGIN + file).openConnection();
-        connection.setConnectTimeout(8000);
-        connection.setReadTimeout(12000);
+    private static HttpsURLConnection connect(String url) throws IOException {
+        HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection();
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(20000);
+        connection.setRequestProperty("User-Agent", "RedLamp-Android");
         connection.setInstanceFollowRedirects(false);
-        connection.setUseCaches(false);
         return connection;
     }
 
-    static StableUpdate check(int installedCode, boolean preview) throws Exception {
-        HttpsURLConnection connection = connect(preview ? "preview.json" : "stable.json");
-        try {
-            if (preview && connection.getResponseCode() == 404) return null;
-            try (InputStream input = connection.getInputStream()) {
-                return readRelease(input, installedCode, preview);
-            }
-        } finally {
-            connection.disconnect();
+    private static long rank(String version) {
+        if (!version.matches("[0-9]{1,6}[.][0-9]{1,6}")) return -1;
+        int dot = version.indexOf('.');
+        return Long.parseLong(version.substring(0, dot)) * 1000000L
+                + Long.parseLong(version.substring(dot + 1));
+    }
+
+    static StableUpdate check(String installed, boolean includePreviews) throws Exception {
+        StableUpdate best = null;
+        long current = rank(installed);
+        for (int page = 1; ; page++) {
+            HttpsURLConnection connection = connect(API + "?per_page=50&page=" + page);
+            try {
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                try (InputStream input = connection.getInputStream()) {
+                    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = input.read(buffer)) != -1) {
+                        bytes.write(buffer, 0, read);
+                        if (bytes.size() > 4000000) throw new IOException("Respuesta demasiado grande");
+                    }
+                    JSONArray releases = new JSONArray(bytes.toString("UTF-8"));
+                    for (int i = 0; i < releases.length(); i++) {
+                        JSONObject release = releases.getJSONObject(i);
+                        boolean preview = release.getBoolean("prerelease");
+                        if (release.getBoolean("draft") || (preview && !includePreviews)) continue;
+                        String tag = release.getString("tag_name");
+                        if (!tag.startsWith("v")) continue;
+                        String version = tag.substring(1);
+                        long candidate = rank(version);
+                        if (candidate <= current) continue;
+                        String name = "Luz-MOES-" + version + ".apk";
+                        String url = "https://github.com/" + REPO + "/releases/download/" + tag + "/" + name;
+                        JSONArray assets = release.getJSONArray("assets");
+                        for (int j = 0; j < assets.length(); j++) {
+                            JSONObject asset = assets.getJSONObject(j);
+                            if (!name.equals(asset.optString("name")) || !url.equals(asset.optString("browser_download_url"))) continue;
+                            String digest = asset.optString("digest");
+                            if (!digest.matches("sha256:[a-f0-9]{64}")) throw new IOException("Firma de descarga no disponible");
+                            best = new StableUpdate(version, digest.substring(7), url, preview);
+                            current = candidate;
+                        }
+                    }
+                    if (releases.length() < 50) return best;
+                }
+            } finally { connection.disconnect(); }
         }
     }
 
-    private static StableUpdate readRelease(InputStream input, int installedCode, boolean preview)
-            throws Exception {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int read;
-        while ((read = input.read(buffer)) != -1) {
-            bytes.write(buffer, 0, read);
-            if (bytes.size() > 4096) throw new IOException("Metadatos demasiado grandes");
+    private HttpsURLConnection download() throws IOException {
+        String url = assetUrl;
+        for (int i = 0; i < 5; i++) {
+            HttpsURLConnection connection = connect(url);
+            int status = connection.getResponseCode();
+            if (status == 200) return connection;
+            String location = connection.getHeaderField("Location");
+            connection.disconnect();
+            if (status < 300 || status >= 400 || location == null) throw new IOException("Descarga HTTP " + status);
+            URL next = new URL(new URL(url), location);
+            String host = next.getHost();
+            if (!"https".equals(next.getProtocol()) || !(host.equals("github.com") || host.endsWith(".githubusercontent.com"))) {
+                throw new IOException("Destino de descarga inesperado");
+            }
+            url = next.toString();
         }
-        JSONObject release = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
-        String version = release.getString("versionName");
-        int code = release.getInt("versionCode");
-        String hash = release.getString("sha256");
-        String pattern = preview ? "[1-9][0-9]{0,5}\\.[1-9][0-9]{0,5}" : "[1-9][0-9]{0,5}\\.0";
-        if (!version.matches(pattern) || code <= 0 || !hash.matches("[a-f0-9]{64}")) {
-            throw new IOException("Metadatos de actualización inválidos");
-        }
-        return code > installedCode ? new StableUpdate(version, code, hash, preview) : null;
+        throw new IOException("Demasiadas redirecciones");
     }
 
     void install(Context context) throws Exception {
@@ -85,7 +120,7 @@ public final class StableUpdate extends BroadcastReceiver {
         boolean committed = false;
         try (PackageInstaller.Session session = installer.openSession(id)) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            HttpsURLConnection connection = connect("Luz-MOES-" + version + ".apk");
+            HttpsURLConnection connection = download();
             try (InputStream input = connection.getInputStream();
                  OutputStream output = session.openWrite("base.apk", 0, -1)) {
                 byte[] buffer = new byte[16384];

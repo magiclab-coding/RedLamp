@@ -46,14 +46,16 @@ public final class Rooms extends Luz {
     private GradientDrawable rounded(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));return d;}
     private TextView rowText(LinearLayout parent,String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);parent.addView(t);return t;}
     private Button button(LinearLayout parent,String title,Runnable action){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setOnClickListener(v->action.run());parent.addView(b);return b;}
-    private ImageButton appInfo;
+    private Button appInfo;
+    private TextView releaseStatus;
+    private Button searchButton, installButton;
     private View updateDot;
     private AlertDialog about;
     private StableUpdate availableUpdate;
     private boolean checkingUpdate, installingUpdate;
     private String updateStatus = "";
     private CheckBox previewChannel;
-    private static final long UPDATE_INTERVAL_MS = 60_000;
+    private static final long UPDATE_INTERVAL_MS = 15 * 60_000;
 
     private final Runnable updatePoll = new Runnable() {
         @Override public void run() {
@@ -62,12 +64,12 @@ public final class Rooms extends Luz {
         }
     };
 
-    private boolean hasWifi() {
+    private boolean hasInternet() {
         android.net.ConnectivityManager manager =
                 (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         android.net.Network network = manager.getActiveNetwork();
         android.net.NetworkCapabilities caps = network == null ? null : manager.getNetworkCapabilities(network);
-        return caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+        return caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
     }
 
     private android.content.pm.PackageInfo installedPackage() {
@@ -80,9 +82,9 @@ public final class Rooms extends Luz {
 
     private void checkUpdate(boolean manual) {
         if (checkingUpdate || installingUpdate) return;
-        if (!hasWifi()) {
+        if (!hasInternet()) {
             if (manual || updateStatus.isEmpty()) {
-                updateStatus = "Conecta a una red WiFi para buscar actualizaciones.";
+                updateStatus = "Sin conexión a Internet. Comprueba los datos móviles o el wifi.";
                 updateAppInfo();
             }
             return;
@@ -90,31 +92,17 @@ public final class Rooms extends Luz {
         checkingUpdate = true;
         updateStatus = "Buscando actualizaciones…";
         updateAppInfo();
-        int code = installedPackage().versionCode;
-        boolean includePreviews = rooms.getBoolean("includePreviews", false);
+        String installed = installedPackage().versionName;
+        boolean previews = rooms.getBoolean("includePreviews", false);
         new Thread(() -> {
-            StableUpdate stable = null;
-            StableUpdate preview = null;
-            boolean failed = false;
             try {
-                stable = StableUpdate.check(code, false);
-            } catch (Exception e) {
-                failed = true;
+                StableUpdate release = StableUpdate.check(installed, previews);
+                String status = release == null ? "Tienes la última versión del canal seleccionado."
+                        : "Disponible  " + release.version + (release.preview ? " · De prueba" : " · Estable");
+                runOnUiThread(() -> finishCheck(release, status));
+            } catch (Exception error) {
+                runOnUiThread(() -> finishCheck(availableUpdate, "No se pudo consultar GitHub. Vuelve a intentarlo."));
             }
-            if (includePreviews) {
-                try {
-                    preview = StableUpdate.check(code, true);
-                } catch (Exception e) {
-                    failed = true;
-                }
-            }
-            StableUpdate release = preview != null && (stable == null || preview.code > stable.code)
-                    ? preview : stable;
-            String status = release != null
-                    ? "Versión " + (release.preview ? "de prueba " : "estable ") + release.version + " disponible."
-                    : failed ? "No se pudieron consultar todas las actualizaciones."
-                    : "No hay actualizaciones disponibles.";
-            runOnUiThread(() -> finishCheck(release, status));
         }, "RedLamp-update-check").start();
     }
 
@@ -129,9 +117,39 @@ public final class Rooms extends Luz {
         previewChannel = new CheckBox(this);
         previewChannel.setText("Incluir versiones de prueba");
         previewChannel.setChecked(rooms.getBoolean("includePreviews", false));
-        FrameLayout channelOptions = new FrameLayout(this);
-        channelOptions.setPadding(dp(20), 0, dp(20), 0);
-        channelOptions.addView(previewChannel);
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(18), dp(12), dp(18), dp(8));
+        scroll.addView(content);
+        rowText(content, "Control local Matter de encendido, brillo, temperatura, horarios y temporizador.", 16, 0xffe7ecee);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14),dp(14),dp(14),dp(12));
+        GradientDrawable border = rounded(0xff23343c);
+        border.setStroke(dp(1), 0xff557078);
+        card.setBackground(border);
+        LinearLayout.LayoutParams area = new LinearLayout.LayoutParams(-1,-2);
+        area.topMargin = dp(14);
+        content.addView(card,area);
+        rowText(card, "Actualizaciones", 20, 0xffffedcf).setTypeface(Typeface.DEFAULT_BOLD);
+        rowText(card, "Instalada  " + installedPackage().versionName, 16, 0xfff4f2ed);
+        releaseStatus = rowText(card, "", 16, 0xffffd394);
+        previewChannel.setTextColor(0xfff4f2ed);
+        card.addView(previewChannel);
+        LinearLayout actions = new LinearLayout(this);
+        card.addView(actions);
+        searchButton = button(actions, "⌕  Buscar", () -> checkUpdate(true));
+        installButton = button(actions, "↓  Instalar", () -> confirmUpdate());
+        for (Button action : new Button[]{searchButton, installButton}) {
+            LinearLayout.LayoutParams item = new LinearLayout.LayoutParams(0, dp(48), 1);
+            item.setMarginEnd(dp(4));
+            action.setLayoutParams(item);
+            action.setPadding(0,0,0,0);
+            action.setTextSize(15);
+            action.setTextColor(0xff16282d);
+            action.setBackground(rounded(action == installButton ? 0xffffcd87 : 0xffb1d9dc));
+        }
         previewChannel.setOnCheckedChangeListener((button, enabled) -> {
             rooms.edit().putBoolean("includePreviews", enabled).apply();
             if (!enabled && availableUpdate != null && availableUpdate.preview) {
@@ -143,14 +161,9 @@ public final class Rooms extends Luz {
         });
         about = new AlertDialog.Builder(this)
                 .setTitle("Acerca de RedLamp")
-                .setMessage("")
-                .setView(channelOptions)
+                .setView(scroll)
                 .setNegativeButton("Cerrar", null)
-                .setNeutralButton("Buscar actualizaciones", null)
-                .setPositiveButton("Instalar", null)
                 .show();
-        about.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> checkUpdate(true));
-        about.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> confirmUpdate());
         updateAppInfo();
     }
 
@@ -162,15 +175,10 @@ public final class Rooms extends Luz {
                 ? "Información de RedLamp. Actualización disponible" : "Información de RedLamp");
         appInfo.setTooltipText(appInfo.getContentDescription());
         if (about == null || !about.isShowing()) return;
-        about.setMessage("Versión instalada " + installedPackage().versionName
-                + "\n\nVincula y controla bombillas Matter en la red WiFi de casa."
-                + "\n\n• Consulta su estado y enciéndelas o apágalas."
-                + "\n• Ajusta el brillo y la temperatura del blanco."
-                + "\n• Configura la luz al encender, los horarios y el temporizador."
-                + "\n\n" + (installingUpdate ? "Descargando la actualización…" : updateStatus));
-        about.getButton(AlertDialog.BUTTON_POSITIVE).setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
-        about.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(!checkingUpdate && !installingUpdate);
-        about.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!checkingUpdate && !installingUpdate);
+        releaseStatus.setText(installingUpdate ? "Descargando la actualización…" : updateStatus);
+        installButton.setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
+        installButton.setEnabled(!checkingUpdate && !installingUpdate);
+        searchButton.setEnabled(!checkingUpdate && !installingUpdate);
         previewChannel.setEnabled(!checkingUpdate && !installingUpdate);
     }
 
@@ -229,12 +237,19 @@ public final class Rooms extends Luz {
 
         FrameLayout infoContainer = new FrameLayout(this);
         header.addView(infoContainer, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        appInfo = new ImageButton(this);
-        appInfo.setImageResource(android.R.drawable.ic_menu_info_details);
-        appInfo.setColorFilter(0xffffedcf);
-        android.util.TypedValue background = new android.util.TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, background, true);
-        appInfo.setBackgroundResource(background.resourceId);
+        appInfo = new Button(this);
+        appInfo.setAllCaps(false);
+        appInfo.setText("i");
+        appInfo.setTypeface(Typeface.SERIF, Typeface.BOLD);
+        appInfo.setTextSize(21);
+        appInfo.setGravity(Gravity.CENTER);
+        appInfo.setPadding(0,0,0,0);
+        appInfo.setTextColor(0xffffedcf);
+        GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setColor(0xff111b22);
+        ring.setStroke(dp(2), 0xffffedcf);
+        appInfo.setBackground(new android.graphics.drawable.InsetDrawable(ring, dp(9)));
         appInfo.setOnClickListener(v -> showAppInfo());
         infoContainer.addView(appInfo, new FrameLayout.LayoutParams(-1, -1));
 
