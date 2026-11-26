@@ -21,7 +21,7 @@ public final class Rooms extends Luz {
     final Set<Long> pending=new HashSet<>();boolean active;
     void draw(){} void setup(){} boolean saved(){return false;} void message(String msg){}
     final Runnable poll=new Runnable(){public void run(){if(!active)return;for(Long id:new ArrayList<>(icons.keySet()))query(id,false);handler.postDelayed(this,4000);}};
-    protected void onPause(){active=false;handler.removeCallbacks(poll);super.onPause();}
+    protected void onPause(){active=false;handler.removeCallbacks(poll);handler.removeCallbacks(updatePoll);super.onPause();}
     void result(long id,Boolean value,long ptr){
         runOnUiThread(()->{if(ptr!=0)controller.releaseConnectedDevicePointer(ptr);busy.remove(id);states.put(id,value);display(id);if(pending.remove(id)&&active&&icons.containsKey(id))query(id,true);});
     }
@@ -42,7 +42,7 @@ public final class Rooms extends Luz {
     private static final String LEGACY="es.luzlocal.casa";
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     public void onCreate(Bundle state){super.onCreate(state);rooms=getSharedPreferences("rooms",MODE_PRIVATE);}
-    protected void onResume(){super.onResume();active=true;states.clear();render();handler.post(poll);checkUpdate();}
+    protected void onResume(){super.onResume();active=true;states.clear();render();handler.post(poll);handler.post(updatePoll);}
     private GradientDrawable rounded(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));return d;}
     private TextView rowText(LinearLayout parent,String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);parent.addView(t);return t;}
     private Button button(LinearLayout parent,String title,Runnable action){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setOnClickListener(v->action.run());parent.addView(b);return b;}
@@ -52,6 +52,23 @@ public final class Rooms extends Luz {
     private StableUpdate availableUpdate;
     private boolean checkingUpdate, installingUpdate;
     private String updateStatus = "";
+    private CheckBox previewChannel;
+    private static final long UPDATE_INTERVAL_MS = 60_000;
+
+    private final Runnable updatePoll = new Runnable() {
+        @Override public void run() {
+            checkUpdate(false);
+            handler.postDelayed(this, UPDATE_INTERVAL_MS);
+        }
+    };
+
+    private boolean hasWifi() {
+        android.net.ConnectivityManager manager =
+                (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        android.net.Network network = manager.getActiveNetwork();
+        android.net.NetworkCapabilities caps = network == null ? null : manager.getNetworkCapabilities(network);
+        return caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+    }
 
     private android.content.pm.PackageInfo installedPackage() {
         try {
@@ -61,21 +78,43 @@ public final class Rooms extends Luz {
         }
     }
 
-    private void checkUpdate() {
-        if (checkingUpdate) return;
+    private void checkUpdate(boolean manual) {
+        if (checkingUpdate || installingUpdate) return;
+        if (!hasWifi()) {
+            if (manual || updateStatus.isEmpty()) {
+                updateStatus = "Conecta a una red WiFi para buscar actualizaciones.";
+                updateAppInfo();
+            }
+            return;
+        }
         checkingUpdate = true;
         updateStatus = "Buscando actualizaciones…";
         updateAppInfo();
         int code = installedPackage().versionCode;
+        boolean includePreviews = rooms.getBoolean("includePreviews", false);
         new Thread(() -> {
+            StableUpdate stable = null;
+            StableUpdate preview = null;
+            boolean failed = false;
             try {
-                StableUpdate release = StableUpdate.check(code);
-                runOnUiThread(() -> finishCheck(release, release == null
-                        ? "Tienes la última versión estable."
-                        : "Versión estable " + release.version + " disponible."));
+                stable = StableUpdate.check(code, false);
             } catch (Exception e) {
-                runOnUiThread(() -> finishCheck(null, "No se pudo comprobar si hay actualizaciones."));
+                failed = true;
             }
+            if (includePreviews) {
+                try {
+                    preview = StableUpdate.check(code, true);
+                } catch (Exception e) {
+                    failed = true;
+                }
+            }
+            StableUpdate release = preview != null && (stable == null || preview.code > stable.code)
+                    ? preview : stable;
+            String status = release != null
+                    ? "Versión " + (release.preview ? "de prueba " : "estable ") + release.version + " disponible."
+                    : failed ? "No se pudieron consultar todas las actualizaciones."
+                    : "No hay actualizaciones disponibles.";
+            runOnUiThread(() -> finishCheck(release, status));
         }, "RedLamp-update-check").start();
     }
 
@@ -87,15 +126,31 @@ public final class Rooms extends Luz {
     }
 
     private void showAppInfo() {
+        previewChannel = new CheckBox(this);
+        previewChannel.setText("Incluir versiones de prueba");
+        previewChannel.setChecked(rooms.getBoolean("includePreviews", false));
+        FrameLayout channelOptions = new FrameLayout(this);
+        channelOptions.setPadding(dp(20), 0, dp(20), 0);
+        channelOptions.addView(previewChannel);
+        previewChannel.setOnCheckedChangeListener((button, enabled) -> {
+            rooms.edit().putBoolean("includePreviews", enabled).apply();
+            if (!enabled && availableUpdate != null && availableUpdate.preview) {
+                availableUpdate = null;
+                updateStatus = "";
+            }
+            updateAppInfo();
+            checkUpdate(true);
+        });
         about = new AlertDialog.Builder(this)
                 .setTitle("Acerca de RedLamp")
                 .setMessage("")
+                .setView(channelOptions)
                 .setNegativeButton("Cerrar", null)
                 .setNeutralButton("Buscar actualizaciones", null)
                 .setPositiveButton("Instalar", null)
                 .show();
-        about.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> checkUpdate());
-        about.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> installUpdate());
+        about.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> checkUpdate(true));
+        about.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> confirmUpdate());
         updateAppInfo();
     }
 
@@ -116,11 +171,26 @@ public final class Rooms extends Luz {
         about.getButton(AlertDialog.BUTTON_POSITIVE).setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
         about.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(!checkingUpdate && !installingUpdate);
         about.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!checkingUpdate && !installingUpdate);
+        previewChannel.setEnabled(!checkingUpdate && !installingUpdate);
     }
 
-    private void installUpdate() {
+    private void confirmUpdate() {
         StableUpdate release = availableUpdate;
         if (release == null || checkingUpdate || installingUpdate) return;
+        if (release.preview) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Instalar versión de prueba")
+                    .setMessage("La versión " + release.version + " puede contener fallos. ¿Quieres instalarla?")
+                    .setNegativeButton("Cancelar", null)
+                    .setPositiveButton("Instalar", (dialog, button) -> installUpdate(release))
+                    .show();
+        } else {
+            installUpdate(release);
+        }
+    }
+
+    private void installUpdate(StableUpdate release) {
+        if (installingUpdate) return;
         if (!getPackageManager().canRequestPackageInstalls()) {
             Toast.makeText(this, "Autoriza a RedLamp y vuelve a pulsar Instalar.", Toast.LENGTH_LONG).show();
             startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,

@@ -22,15 +22,17 @@ public final class StableUpdate extends BroadcastReceiver {
     final String version;
     final int code;
     final String hash;
+    final boolean preview;
 
     public StableUpdate() {
-        this("", 0, "");
+        this("", 0, "", false);
     }
 
-    private StableUpdate(String version, int code, String hash) {
+    private StableUpdate(String version, int code, String hash, boolean preview) {
         this.version = version;
         this.code = code;
         this.hash = hash;
+        this.preview = preview;
     }
 
     private static HttpsURLConnection connect(String file) throws IOException {
@@ -42,27 +44,36 @@ public final class StableUpdate extends BroadcastReceiver {
         return connection;
     }
 
-    static StableUpdate check(int installedCode) throws Exception {
-        HttpsURLConnection connection = connect("stable.json");
-        try (InputStream input = connection.getInputStream()) {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = input.read(buffer)) != -1) {
-                bytes.write(buffer, 0, read);
-                if (bytes.size() > 4096) throw new IOException("Metadatos demasiado grandes");
+    static StableUpdate check(int installedCode, boolean preview) throws Exception {
+        HttpsURLConnection connection = connect(preview ? "preview.json" : "stable.json");
+        try {
+            if (preview && connection.getResponseCode() == 404) return null;
+            try (InputStream input = connection.getInputStream()) {
+                return readRelease(input, installedCode, preview);
             }
-            JSONObject release = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
-            String version = release.getString("versionName");
-            int code = release.getInt("versionCode");
-            String hash = release.getString("sha256");
-            if (!version.matches("[1-9][0-9]{0,5}\\.0") || code <= 0 || !hash.matches("[a-f0-9]{64}")) {
-                throw new IOException("Metadatos de actualización inválidos");
-            }
-            return code > installedCode ? new StableUpdate(version, code, hash) : null;
         } finally {
             connection.disconnect();
         }
+    }
+
+    private static StableUpdate readRelease(InputStream input, int installedCode, boolean preview)
+            throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            bytes.write(buffer, 0, read);
+            if (bytes.size() > 4096) throw new IOException("Metadatos demasiado grandes");
+        }
+        JSONObject release = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+        String version = release.getString("versionName");
+        int code = release.getInt("versionCode");
+        String hash = release.getString("sha256");
+        String pattern = preview ? "[1-9][0-9]{0,5}\\.[1-9][0-9]{0,5}" : "[1-9][0-9]{0,5}\\.0";
+        if (!version.matches(pattern) || code <= 0 || !hash.matches("[a-f0-9]{64}")) {
+            throw new IOException("Metadatos de actualización inválidos");
+        }
+        return code > installedCode ? new StableUpdate(version, code, hash, preview) : null;
     }
 
     void install(Context context) throws Exception {
