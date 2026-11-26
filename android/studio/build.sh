@@ -48,6 +48,8 @@ xml = manifest.read_text()
 assert xml.count("<application ") == 1 and xml.count("</application>") == 1
 xml = xml.replace("<application ", '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <application ', 1)
 xml = xml.replace("</application>", '<receiver android:name="es.luzlocal.matter.StableUpdate" android:exported="false" />\n    </application>', 1)
+if "android.permission.ACCESS_NETWORK_STATE" not in xml:
+    xml = xml.replace("<application ", '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <application ', 1)
 manifest.write_text(xml)
 PY_MANIFEST
 java -jar "$APKTOOL_JAR" b -p "$work_dir/framework" -o "$work_dir/rebuilt.apk" "$work_dir/package"
