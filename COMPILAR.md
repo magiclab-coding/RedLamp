@@ -176,3 +176,12 @@ node android/studio/tests/test-web.cjs
 ```
 
 El script verifica la APK base, actualiza su manifiesto a 3.3 (código 8) y sustituye la interfaz HTML. Conserva el código DEX, las bibliotecas Matter y los demás recursos de 3.2. La APK firmada con el certificado original está en `dist/Luz-MOES-3.3.apk` de la rama de desarrollo.
+
+## Generar la corrección del dial 3.4
+
+```bash
+bash android/studio/build-ui-3.3.sh dist/Luz-MOES-3.2.apk "$REDLAMP_DEV/out/Luz-MOES-3.4-sin-firma.apk" 3.4 9
+node android/studio/tests/test-web.cjs
+```
+
+La APK firmada está en `dist/Luz-MOES-3.4.apk`. Usa el mismo certificado que 3.2 y 3.3.
