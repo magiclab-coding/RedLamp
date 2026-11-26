@@ -41,7 +41,7 @@ function ring(n){var a=(135+2.7*n)*Math.PI/180;$('knob').setAttribute('cx',160+1
 function pos(e){var b=$('dial').getBoundingClientRect(),x=(e.clientX-b.left)*320/b.width-160,y=(e.clientY-b.top)*286/b.height-153;var a=((Math.atan2(y,x)*180/Math.PI-135)%360+360)%360;return a>270?(a<315?100:0):Math.round(a/2.7)}
 var picked=0,brightRevision=0,tempRevision=0,brightTarget=0,tempTarget=0;
 function kelvinAt(n){
-  var warm=Math.abs(state.kw-2700)<=4?2700:state.kw;
+  var warm=state.kw;
   return Math.round(warm+(state.kc-warm)*n/100);
 }
 function bulbTone(n){
@@ -51,7 +51,7 @@ function bulbTone(n){
   return 'rgb('+a.map(function(channel,i){return Math.round(channel+(b[i]-channel)*fraction)}).join(',')+')';
 }
 function formatKelvin(k){return Number.isFinite(k)?k+' K':'—'}
-function showTemp(n,k){ring(n);$('ringbox').style.setProperty('--bulb-tone',bulbTone(n));var value=formatKelvin(n===0?kelvinAt(0):k);$('kel').textContent=value;$('dial').setAttribute('aria-valuetext',value)}
+function showTemp(n,k){ring(n);$('ringbox').style.setProperty('--bulb-tone',bulbTone(n));var value=formatKelvin(k);$('kel').textContent=value;$('dial').setAttribute('aria-valuetext',value)}
 function previewTemp(n){showTemp(n,kelvinAt(n))}
 function commitTemp(n){tempTarget=n;previewTemp(n);act('temp',n,++tempRevision)}
 function showBrightness(n){$('bright').value=n;$('pct').textContent=(1+Math.round(n*.99))+' %'}
