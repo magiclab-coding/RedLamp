@@ -42,27 +42,110 @@ public final class Rooms extends Luz {
     private static final String LEGACY="es.luzlocal.casa";
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     public void onCreate(Bundle state){super.onCreate(state);rooms=getSharedPreferences("rooms",MODE_PRIVATE);}
-    protected void onResume(){super.onResume();active=true;states.clear();render();handler.post(poll);}
+    protected void onResume(){super.onResume();active=true;states.clear();render();handler.post(poll);checkUpdate();}
     private GradientDrawable rounded(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));return d;}
     private TextView rowText(LinearLayout parent,String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);parent.addView(t);return t;}
     private Button button(LinearLayout parent,String title,Runnable action){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setOnClickListener(v->action.run());parent.addView(b);return b;}
-    private void showAppInfo() {
-        String version;
+    private ImageButton appInfo;
+    private View updateDot;
+    private AlertDialog about;
+    private StableUpdate availableUpdate;
+    private boolean checkingUpdate, installingUpdate;
+    private String updateStatus = "";
+
+    private android.content.pm.PackageInfo installedPackage() {
         try {
-            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            return getPackageManager().getPackageInfo(getPackageName(), 0);
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
-            version = null;
+            throw new IllegalStateException(e);
         }
-        String versionLine = version == null ? "Versión no disponible" : "Versión " + version;
-        new AlertDialog.Builder(this)
-                .setTitle("Acerca de RedLamp")
-                .setMessage(versionLine + "\n\nVincula y gestiona tus bombillas Matter en la red WiFi de casa."
-                        + "\n\n• Consulta su estado y enciéndelas o apágalas."
-                        + "\n• Ajusta el brillo y la temperatura del blanco."
-                        + "\n• Configura la luz al encender, los horarios y el temporizador.")
-                .setPositiveButton("Cerrar", null)
-                .show();
     }
+
+    private void checkUpdate() {
+        if (checkingUpdate) return;
+        checkingUpdate = true;
+        updateStatus = "Buscando actualizaciones…";
+        updateAppInfo();
+        int code = installedPackage().versionCode;
+        new Thread(() -> {
+            try {
+                StableUpdate release = StableUpdate.check(code);
+                runOnUiThread(() -> finishCheck(release, release == null
+                        ? "Tienes la última versión estable."
+                        : "Versión estable " + release.version + " disponible."));
+            } catch (Exception e) {
+                runOnUiThread(() -> finishCheck(null, "No se pudo comprobar si hay actualizaciones."));
+            }
+        }, "RedLamp-update-check").start();
+    }
+
+    private void finishCheck(StableUpdate release, String status) {
+        checkingUpdate = false;
+        availableUpdate = release;
+        updateStatus = status;
+        updateAppInfo();
+    }
+
+    private void showAppInfo() {
+        about = new AlertDialog.Builder(this)
+                .setTitle("Acerca de RedLamp")
+                .setMessage("")
+                .setNegativeButton("Cerrar", null)
+                .setNeutralButton("Buscar actualizaciones", null)
+                .setPositiveButton("Instalar", null)
+                .show();
+        about.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> checkUpdate());
+        about.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> installUpdate());
+        updateAppInfo();
+    }
+
+    private void updateAppInfo() {
+        if (appInfo == null || isDestroyed()) return;
+        boolean hasUpdate = availableUpdate != null;
+        updateDot.setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
+        appInfo.setContentDescription(hasUpdate
+                ? "Información de RedLamp. Actualización disponible" : "Información de RedLamp");
+        appInfo.setTooltipText(appInfo.getContentDescription());
+        if (about == null || !about.isShowing()) return;
+        about.setMessage("Versión instalada " + installedPackage().versionName
+                + "\n\nVincula y controla bombillas Matter en la red WiFi de casa."
+                + "\n\n• Consulta su estado y enciéndelas o apágalas."
+                + "\n• Ajusta el brillo y la temperatura del blanco."
+                + "\n• Configura la luz al encender, los horarios y el temporizador."
+                + "\n\n" + (installingUpdate ? "Descargando la actualización…" : updateStatus));
+        about.getButton(AlertDialog.BUTTON_POSITIVE).setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
+        about.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(!checkingUpdate && !installingUpdate);
+        about.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!checkingUpdate && !installingUpdate);
+    }
+
+    private void installUpdate() {
+        StableUpdate release = availableUpdate;
+        if (release == null || checkingUpdate || installingUpdate) return;
+        if (!getPackageManager().canRequestPackageInstalls()) {
+            Toast.makeText(this, "Autoriza a RedLamp y vuelve a pulsar Instalar.", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    android.net.Uri.parse("package:" + getPackageName())));
+            return;
+        }
+        installingUpdate = true;
+        updateAppInfo();
+        new Thread(() -> {
+            String status;
+            try {
+                release.install(getApplicationContext());
+                status = "Confirma la instalación en Android.";
+            } catch (Exception e) {
+                status = "No se pudo preparar la actualización. Puedes volver a intentarlo.";
+            }
+            String result = status;
+            runOnUiThread(() -> {
+                installingUpdate = false;
+                updateStatus = result;
+                updateAppInfo();
+            });
+        }, "RedLamp-update-install").start();
+    }
+
     private void render(){
         getWindow().setStatusBarColor(0xff111b22);getWindow().setNavigationBarColor(0xff111b22);
         icons.clear();labels.clear();ScrollView scroll=new ScrollView(this);scroll.setBackgroundColor(0xff111b22);
@@ -73,16 +156,25 @@ public final class Rooms extends Luz {
         TextView heading = rowText(header, "Mis bombillas", 32, 0xffffedcf);
         heading.setTypeface(Typeface.DEFAULT_BOLD);
         heading.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
-        ImageButton info = new ImageButton(this);
-        info.setImageResource(android.R.drawable.ic_menu_info_details);
-        info.setColorFilter(0xffffedcf);
-        info.setContentDescription("Información de RedLamp");
-        info.setTooltipText(info.getContentDescription());
+
+        FrameLayout infoContainer = new FrameLayout(this);
+        header.addView(infoContainer, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        appInfo = new ImageButton(this);
+        appInfo.setImageResource(android.R.drawable.ic_menu_info_details);
+        appInfo.setColorFilter(0xffffedcf);
         android.util.TypedValue background = new android.util.TypedValue();
         getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, background, true);
-        info.setBackgroundResource(background.resourceId);
-        info.setOnClickListener(v -> showAppInfo());
-        header.addView(info, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        appInfo.setBackgroundResource(background.resourceId);
+        appInfo.setOnClickListener(v -> showAppInfo());
+        infoContainer.addView(appInfo, new FrameLayout.LayoutParams(-1, -1));
+
+        updateDot = new View(this);
+        updateDot.setBackground(rounded(0xffffa865));
+        FrameLayout.LayoutParams dotPosition = new FrameLayout.LayoutParams(dp(8), dp(8), Gravity.TOP | Gravity.END);
+        dotPosition.setMarginEnd(dp(7));
+        dotPosition.topMargin = dp(7);
+        infoContainer.addView(updateDot, dotPosition);
+        updateAppInfo();
         Button add=button(list,"＋  Añadir bombilla",()->name(-1));add.setBackground(rounded(0xffffcd87));add.setTextColor(0xff17262b);
         if(!rooms.getBoolean("hideLegacy",false)&&getPackageManager().getLaunchIntentForPackage(LEGACY)!=null)row(0,"Acceso a Casa 2.0");
         for(long id=1;id<rooms.getLong("next",1);id++)if(rooms.contains("name"+id)){
