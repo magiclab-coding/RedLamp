@@ -10,8 +10,8 @@ fi
 : "${APKTOOL_JAR:?Indica la ruta a Apktool 2.11.1}"
 : "${REDLAMP_BUILD_LIBS:?Indica el directorio de los JAR de compilación}"
 
-version_name=${3:-3.2}
-version_code=${4:-7}
+version_name=${3:-5.3}
+version_code=${4:-17}
 [[ "$version_name" =~ ^[0-9]+(\.[0-9]+)+$ && "$version_code" =~ ^[0-9]+$ ]] || exit 2
 
 source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -50,6 +50,10 @@ xml = xml.replace("<application ", '<uses-permission android:name="android.permi
 xml = xml.replace("</application>", '<receiver android:name="es.luzlocal.matter.StableUpdate" android:exported="false" />\n    </application>', 1)
 if "android.permission.ACCESS_NETWORK_STATE" not in xml:
     xml = xml.replace("<application ", '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <application ', 1)
+import re
+xml, count = re.subn(r'(<application\b[^>]*?android:label=")[^"]*', r'\g<1>RedLamp', xml)
+assert count == 1
+xml = xml.replace("<application ", '<application android:roundIcon="@drawable/lamp_icon" ', 1)
 manifest.write_text(xml)
 PY_MANIFEST
 java -jar "$APKTOOL_JAR" b -p "$work_dir/framework" -o "$work_dir/rebuilt.apk" "$work_dir/package"

@@ -18,7 +18,7 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 
 public final class StableUpdate extends BroadcastReceiver {
-    private static final String REPO = "magiclab-coding/RedLamp";
+    private static final String REPO = "magiclab-coding/red-lamp";
     private static final String API = "https://api.github.com/repos/" + REPO + "/releases";
     private static final int MAX_APK_BYTES = 64 * 1024 * 1024;
     final String version, hash, assetUrl;

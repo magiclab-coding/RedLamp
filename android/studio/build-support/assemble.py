@@ -10,6 +10,7 @@ with ZipFile(rebuilt) as rebuilt_apk:
 replacements = {
     "AndroidManifest.xml": manifest,
     "assets/studio.html": html.read_bytes(),
+    "res/drawable-nodpi/lamp_icon.png": (html.parent / "lamp_icon.png").read_bytes(),
 }
 
 if dex != Path("-"):

@@ -1,6 +1,6 @@
 # RedLamp
 
-Repositorio: https://github.com/magiclab-coding/RedLamp
+Repositorio: https://github.com/magiclab-coding/red-lamp
 
 ## Trabajo en el proyecto
 
