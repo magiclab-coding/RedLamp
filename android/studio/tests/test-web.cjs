@@ -6,6 +6,8 @@ const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 class Element {
   constructor() {
     this.attributes = {};
+    this.style = new Map();
+    this.style.setProperty = this.style.set;
     this.children = [];
   }
   setAttribute(key, value) { this.attributes[key] = value; }
@@ -60,6 +62,20 @@ assert.equal(byId('tv').textContent, '6500 K');
 assert.equal(byId('dt').attributes['aria-valuetext'], '6500 K');
 update({...base, online: false});
 assert.equal(byId('temp').textContent, '—');
+calls.length = 0;
+update({...base, kw:2703, t:0, k:2703, tr:2, on:true});
+assert.equal(byId('kel').textContent, '2700 K');
+assert.equal(byId('ringbox').style.get('--bulb-tone'), 'rgb(255,199,104)');
+byId('dialPower').onclick();
+assert.deepEqual(calls.map(call => call[0]), ['power']);
+assert.equal(byId('kel').textContent, '2700 K');
+update({...base, kw:2703, t:100, k:6500, tr:2, on:false});
+assert.equal(byId('kel').textContent, '6500 K');
+assert.equal(byId('ringbox').style.get('--bulb-tone'), 'rgb(196,233,252)');
+assert.equal(byId('dialPower').attributes['aria-pressed'], 'false');
+update({...base, online:false});
+byId('dialPower').onclick();
+assert.deepEqual(calls.map(call => call[0]), ['power']);
 assert.match(html, /-webkit-tap-highlight-color:transparent/);
 assert.match(html, /top:53\.4965%;left:50%;transform:translate\(-50%,-50%\)/);
 console.log('PASS: dial, brightness, delayed snapshots, rapid retargeting, touch styles');

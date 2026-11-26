@@ -185,3 +185,12 @@ node android/studio/tests/test-web.cjs
 ```
 
 La APK firmada está en `dist/Luz-MOES-3.4.apk`. Usa el mismo certificado que 3.2 y 3.3.
+
+## Generar la versión 3.5 del dial
+
+```bash
+bash android/studio/build-ui-3.3.sh dist/Luz-MOES-3.2.apk "$REDLAMP_DEV/out/Luz-MOES-3.5-sin-firma.apk" 3.5 10
+node android/studio/tests/test-web.cjs
+```
+
+La APK firmada está en `dist/Luz-MOES-3.5.apk`.
