@@ -46,11 +46,43 @@ public final class Rooms extends Luz {
     private GradientDrawable rounded(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));return d;}
     private TextView rowText(LinearLayout parent,String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);parent.addView(t);return t;}
     private Button button(LinearLayout parent,String title,Runnable action){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setOnClickListener(v->action.run());parent.addView(b);return b;}
+    private void showAppInfo() {
+        String version;
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            version = null;
+        }
+        String versionLine = version == null ? "Versión no disponible" : "Versión " + version;
+        new AlertDialog.Builder(this)
+                .setTitle("Acerca de RedLamp")
+                .setMessage(versionLine + "\n\nVincula y gestiona tus bombillas Matter en la red WiFi de casa."
+                        + "\n\n• Consulta su estado y enciéndelas o apágalas."
+                        + "\n• Ajusta el brillo y la temperatura del blanco."
+                        + "\n• Configura la luz al encender, los horarios y el temporizador.")
+                .setPositiveButton("Cerrar", null)
+                .show();
+    }
     private void render(){
         getWindow().setStatusBarColor(0xff111b22);getWindow().setNavigationBarColor(0xff111b22);
         icons.clear();labels.clear();ScrollView scroll=new ScrollView(this);scroll.setBackgroundColor(0xff111b22);
         list=new LinearLayout(this);list.setOrientation(1);list.setPadding(dp(18),dp(24),dp(18),dp(24));scroll.addView(list);setContentView(scroll);
-        rowText(list,"Mis bombillas",32,0xffffedcf).setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        list.addView(header);
+        TextView heading = rowText(header, "Mis bombillas", 32, 0xffffedcf);
+        heading.setTypeface(Typeface.DEFAULT_BOLD);
+        heading.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        ImageButton info = new ImageButton(this);
+        info.setImageResource(android.R.drawable.ic_menu_info_details);
+        info.setColorFilter(0xffffedcf);
+        info.setContentDescription("Información de RedLamp");
+        info.setTooltipText(info.getContentDescription());
+        android.util.TypedValue background = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, background, true);
+        info.setBackgroundResource(background.resourceId);
+        info.setOnClickListener(v -> showAppInfo());
+        header.addView(info, new LinearLayout.LayoutParams(dp(48), dp(48)));
         Button add=button(list,"＋  Añadir bombilla",()->name(-1));add.setBackground(rounded(0xffffcd87));add.setTextColor(0xff17262b);
         if(!rooms.getBoolean("hideLegacy",false)&&getPackageManager().getLaunchIntentForPackage(LEGACY)!=null)row(0,"Acceso a Casa 2.0");
         for(long id=1;id<rooms.getLong("next",1);id++)if(rooms.contains("name"+id)){
