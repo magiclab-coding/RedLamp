@@ -1,6 +1,6 @@
-# Instalar y compilar RedLamp 3.2
+# Instalar y compilar RedLamp 5.0
 
-Usa Linux o Ubuntu en WSL 2 para compilar. La compilación ensambla una APK de desarrollo a partir de la APK 3.1, que aporta el controlador Matter, los recursos y las bibliotecas ARM64. Los scripts recompilan el código Java recuperado, actualizan el HTML y generan la versión 3.2 sin firma. La APK de desarrollo tiene un DEX distinto del de la APK distribuida.
+Usa Linux o Ubuntu en WSL 2 para compilar. La compilación ensambla una APK de desarrollo a partir de la APK 3.1, que aporta el controlador Matter, los recursos y las bibliotecas ARM64. Los scripts recompilan el código Java recuperado, actualizan el HTML y generan la versión 5.0 sin firma. La APK de desarrollo tiene un DEX distinto del de la APK distribuida.
 
 ## 1. Preparar el entorno aislado
 
@@ -13,7 +13,7 @@ java -version
 javac -version
 ```
 
-Si ya hay varios JDK instalados, selecciona Java 17 para esta sesión ajustando el `PATH` antes de continuar. Crea un directorio dedicado. Usa una cuenta de GitHub con acceso al repositorio privado.
+Si ya hay varios JDK instalados, selecciona Java 17 para esta sesión ajustando el `PATH` antes de continuar. Crea un directorio dedicado.
 
 ```bash
 export REDLAMP_DEV="$HOME/redlamp-dev"
@@ -25,7 +25,7 @@ export ANDROID_AVD_HOME="$REDLAMP_DEV/avd"
 export APKTOOL_JAR="$REDLAMP_DEV/tools/apktool_2.11.1.jar"
 export REDLAMP_BUILD_LIBS="$REDLAMP_DEV/deps"
 export TMPDIR="$REDLAMP_DEV/tmp"
-git clone --branch develop https://github.com/magiclab-coding/RedLamp.git "$REDLAMP_DEV/source"
+git clone --branch develop https://github.com/magiclab-coding/red-lamp.git "$REDLAMP_DEV/source"
 cd "$REDLAMP_DEV/source"
 git status --short --branch
 ```
@@ -56,38 +56,17 @@ Desde `$REDLAMP_DEV/source`, descarga las cuatro dependencias. El script comprue
 
 ```bash
 bash android/studio/build-support/dependencies.sh "$REDLAMP_BUILD_LIBS"
-bash android/studio/build.sh dist/Luz-MOES-3.1.apk "$REDLAMP_DEV/out/RedLamp-3.2-sin-firma.apk"
+bash android/studio/build.sh android/studio/build-support/matter-base.apk "$REDLAMP_DEV/out/RedLamp-5.0-sin-firma.apk" 5.0 14
 node android/studio/tests/test-web.cjs
 mkdir -p "$REDLAMP_DEV/out/pruebas-java"
 javac -d "$REDLAMP_DEV/out/pruebas-java" android/studio/LampAdjustment.java android/studio/tests/AdjustmentTest.java
 java -cp "$REDLAMP_DEV/out/pruebas-java" es.luzlocal.matter.AdjustmentTest
 BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-"$BUILD_TOOLS/zipalign" -c 4 "$REDLAMP_DEV/out/RedLamp-3.2-sin-firma.apk"
-"$BUILD_TOOLS/aapt" dump badging "$REDLAMP_DEV/out/RedLamp-3.2-sin-firma.apk" | grep -E '^(package:|sdkVersion:|native-code:)'
+"$BUILD_TOOLS/zipalign" -c 4 "$REDLAMP_DEV/out/RedLamp-5.0-sin-firma.apk"
+"$BUILD_TOOLS/aapt" dump badging "$REDLAMP_DEV/out/RedLamp-5.0-sin-firma.apk" | grep -E '^(package:|sdkVersion:|native-code:)'
 ```
 
-Comprueba que la salida indique `es.luzlocal.multi`, `versionName=3.2`, `versionCode=7`, API mínima 28 y `arm64-v8a`.
-
-## 4. Instalar la 3.2 distribuida en el Xperia
-
-En el Xperia, activa las opciones de desarrollador y la depuración USB. Conecta el cable y acepta la huella RSA del ordenador en el teléfono. Si compilas en WSL, puedes usar `adb.exe` de Android SDK Platform-Tools en Windows con el móvil conectado por USB a Windows. Usa una ruta de APK accesible para Windows cuando ejecutes `adb.exe`.
-
-```bash
-ADB="$ANDROID_HOME/platform-tools/adb"
-"$BUILD_TOOLS/apksigner" verify --print-certs dist/Luz-MOES-3.1.apk
-"$BUILD_TOOLS/apksigner" verify --print-certs dist/Luz-MOES-3.2.apk
-"$ADB" devices -l
-```
-
-Ambas APK distribuidas comparten el certificado SHA-256 `369533971c66d7893bad6fbacd1432b064560728559424785fad5276cacff7c3`. Si tienes otros dispositivos conectados, copia el identificador del Xperia que devuelve `adb devices -l`.
-
-```bash
-read -r -p 'Identificador del Xperia en adb: ' XPERIA_SERIAL
-"$ADB" -s "$XPERIA_SERIAL" install -r dist/Luz-MOES-3.2.apk
-"$ADB" -s "$XPERIA_SERIAL" shell dumpsys package es.luzlocal.multi | grep -E 'versionCode=|versionName='
-```
-
-`-r` solicita una reinstalación conservando los datos. La actualización 3.1 → 3.2 quedó confirmada en el Xperia físico en la [incidencia #2](https://github.com/magiclab-coding/RedLamp/issues/2).
+Comprueba que la salida indique `es.luzlocal.multi`, `versionName=5.0`, `versionCode=14`, API mínima 28 y `arm64-v8a`.
 
 ## 5. Firmar una compilación propia para pruebas
 
@@ -96,8 +75,8 @@ Guarda una clave de desarrollo en el entorno aislado. `keytool` y `apksigner` pi
 ```bash
 mkdir -p "$REDLAMP_DEV/keys"
 keytool -genkeypair -keystore "$REDLAMP_DEV/keys/redlamp-dev.p12" -storetype PKCS12 -alias redlamp-dev -keyalg RSA -keysize 2048 -validity 3650
-"$BUILD_TOOLS/apksigner" sign --ks "$REDLAMP_DEV/keys/redlamp-dev.p12" --ks-key-alias redlamp-dev --out "$REDLAMP_DEV/out/RedLamp-3.2-desarrollo.apk" "$REDLAMP_DEV/out/RedLamp-3.2-sin-firma.apk"
-"$BUILD_TOOLS/apksigner" verify --print-certs "$REDLAMP_DEV/out/RedLamp-3.2-desarrollo.apk"
+"$BUILD_TOOLS/apksigner" sign --ks "$REDLAMP_DEV/keys/redlamp-dev.p12" --ks-key-alias redlamp-dev --out "$REDLAMP_DEV/out/RedLamp-5.0-desarrollo.apk" "$REDLAMP_DEV/out/RedLamp-5.0-sin-firma.apk"
+"$BUILD_TOOLS/apksigner" verify --print-certs "$REDLAMP_DEV/out/RedLamp-5.0-desarrollo.apk"
 ```
 
 Instala esta variante en un dispositivo de pruebas limpio y compatible con ARM64. Para actualizar una instalación distribuida hay que firmar con la clave original y mantener el identificador de aplicación. Conserva el almacén de claves fuera del repositorio.
@@ -155,8 +134,8 @@ Cuando `sys.boot_completed` sea `1`, la API debe indicar `28` y la pantalla `720
 
 ```bash
 cd "$HOME/redlamp-dev/source"
-"$ADB" -e install dist/Luz-MOES-3.1.apk
-"$ADB" -e install -r dist/Luz-MOES-3.2.apk
+"$ADB" -e install "$REDLAMP_DEV/out/RedLamp-5.0-desarrollo.apk"
+
 "$ADB" -e shell dumpsys package es.luzlocal.multi | grep -E 'versionCode=|versionName='
 ```
 
@@ -166,31 +145,3 @@ Para probar Android 9 con la ABI del Xperia en un equipo compatible con emulaci�
 
 [Android SDK Manager](https://developer.android.com/tools/sdkmanager) · [Aceleración del emulador](https://developer.android.com/studio/run/emulator-acceleration) · [ABI admitidas por imágenes de Android](https://developer.android.com/studio/releases/emulator) · [Guía Sony Xperia XZ1 Compact con Android 9](https://www-support-downloads.sonymobile.com/g8441/userguide_EN_G8441_5_Android9.0.pdf)
 
-## Generar la actualización 3.3 de interfaz
-
-Desde la raíz del clon, con el SDK y Apktool configurados como en los pasos 1 y 2:
-
-```bash
-bash android/studio/build-ui-3.3.sh dist/Luz-MOES-3.2.apk "$REDLAMP_DEV/out/Luz-MOES-3.3-sin-firma.apk"
-node android/studio/tests/test-web.cjs
-```
-
-El script verifica la APK base, actualiza su manifiesto a 3.3 (código 8) y sustituye la interfaz HTML. Conserva el código DEX, las bibliotecas Matter y los demás recursos de 3.2. La APK firmada con el certificado original está en `dist/Luz-MOES-3.3.apk` de la rama de desarrollo.
-
-## Generar la corrección del dial 3.4
-
-```bash
-bash android/studio/build-ui-3.3.sh dist/Luz-MOES-3.2.apk "$REDLAMP_DEV/out/Luz-MOES-3.4-sin-firma.apk" 3.4 9
-node android/studio/tests/test-web.cjs
-```
-
-La APK firmada está en `dist/Luz-MOES-3.4.apk`. Usa el mismo certificado que 3.2 y 3.3.
-
-## Generar la versión 3.5 del dial
-
-```bash
-bash android/studio/build-ui-3.3.sh dist/Luz-MOES-3.2.apk "$REDLAMP_DEV/out/Luz-MOES-3.5-sin-firma.apk" 3.5 10
-node android/studio/tests/test-web.cjs
-```
-
-La APK firmada está en `dist/Luz-MOES-3.5.apk`.
