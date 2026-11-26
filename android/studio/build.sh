@@ -39,6 +39,17 @@ java -jar "$APKTOOL_JAR" d --no-src -p "$work_dir/framework" -o "$work_dir/packa
 sed -i -e "s/^  versionCode: 6$/  versionCode: $version_code/" -e "s/^  versionName: 3\.1$/  versionName: $version_name/" "$work_dir/package/apktool.yml"
 grep -Fqx "  versionCode: $version_code" "$work_dir/package/apktool.yml"
 grep -Fqx "  versionName: $version_name" "$work_dir/package/apktool.yml"
+python3 - "$work_dir/package/AndroidManifest.xml" <<'PY_MANIFEST'
+from pathlib import Path
+import sys
+
+manifest = Path(sys.argv[1])
+xml = manifest.read_text()
+assert xml.count("<application ") == 1 and xml.count("</application>") == 1
+xml = xml.replace("<application ", '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <application ', 1)
+xml = xml.replace("</application>", '<receiver android:name="es.luzlocal.matter.StableUpdate" android:exported="false" />\n    </application>', 1)
+manifest.write_text(xml)
+PY_MANIFEST
 java -jar "$APKTOOL_JAR" b -p "$work_dir/framework" -o "$work_dir/rebuilt.apk" "$work_dir/package"
 
 python3 "$source_dir/build-support/assemble.py" "$base_apk" "$work_dir/rebuilt.apk" \
