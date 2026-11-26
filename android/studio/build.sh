@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-    echo "Uso: bash android/studio/build.sh BASE_3.1.apk SALIDA-SIN-FIRMA.apk" >&2
+if [[ $# -ne 2 && $# -ne 4 ]]; then
+    echo "Uso: bash android/studio/build.sh BASE_3.1.apk SALIDA-SIN-FIRMA.apk [VERSION CODIGO]" >&2
     exit 2
 fi
 
 : "${ANDROID_SDK_ROOT:?Indica el directorio del SDK de Android}"
 : "${APKTOOL_JAR:?Indica la ruta a Apktool 2.11.1}"
 : "${REDLAMP_BUILD_LIBS:?Indica el directorio de los JAR de compilación}"
+
+version_name=${3:-3.2}
+version_code=${4:-7}
+[[ "$version_name" =~ ^[0-9]+(\.[0-9]+)+$ && "$version_code" =~ ^[0-9]+$ ]] || exit 2
 
 source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 base_apk=$(realpath "$1")
@@ -32,9 +36,9 @@ jar cf "$work_dir/changes.jar" -C "$work_dir/classes" .
 "$build_tools/d8" --release --min-api 28 --lib "$android_jar" --output "$work_dir/dex" "$work_dir/changes.jar"
 
 java -jar "$APKTOOL_JAR" d --no-src -p "$work_dir/framework" -o "$work_dir/package" "$base_apk"
-sed -i -e 's/^  versionCode: 6$/  versionCode: 7/' -e 's/^  versionName: 3\.1$/  versionName: 3.2/' "$work_dir/package/apktool.yml"
-grep -qx '  versionCode: 7' "$work_dir/package/apktool.yml"
-grep -qx '  versionName: 3.2' "$work_dir/package/apktool.yml"
+sed -i -e "s/^  versionCode: 6$/  versionCode: $version_code/" -e "s/^  versionName: 3\.1$/  versionName: $version_name/" "$work_dir/package/apktool.yml"
+grep -Fqx "  versionCode: $version_code" "$work_dir/package/apktool.yml"
+grep -Fqx "  versionName: $version_name" "$work_dir/package/apktool.yml"
 java -jar "$APKTOOL_JAR" b -p "$work_dir/framework" -o "$work_dir/rebuilt.apk" "$work_dir/package"
 
 python3 "$source_dir/build-support/assemble.py" "$base_apk" "$work_dir/rebuilt.apk" \
